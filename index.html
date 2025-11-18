@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>シンプルチャット画面</title>
+  <title>HTML対応タイピングチャット</title>
   <style>
     * {
       box-sizing: border-box;
@@ -129,7 +129,7 @@
 </head>
 <body>
   <div class="chat-container">
-    <div class="chat-header">チャット画面（サンプル）</div>
+    <div class="chat-header">HTML対応タイピングチャット</div>
 
     <div class="chat-window" id="chatWindow">
       <!-- メッセージがここに追加される -->
@@ -139,9 +139,9 @@
       <input
         type="text"
         id="chatInput"
-        placeholder="メッセージを入力..."
+        placeholder='例: <p>こんにちは、<strong>世界</strong>！</p>'
       />
-      <button id="sendOther">相手送信</button>
+      <button id="sendOther">相手送信(HTML)</button>
       <button id="sendSelf">自分送信</button>
     </div>
   </div>
@@ -152,7 +152,9 @@
     const sendOtherBtn = document.getElementById("sendOther");
     const sendSelfBtn = document.getElementById("sendSelf");
 
-    // 自分のメッセージ（右側）を追加
+    const TYPE_SPEED = 40; // タイピング速度(ms)
+
+    // 自分のメッセージ（右側）を追加（プレーンテキスト）
     function addSelfMessage(text) {
       const row = document.createElement("div");
       row.classList.add("message-row", "self");
@@ -164,40 +166,95 @@
       row.appendChild(bubble);
       chatWindow.appendChild(row);
 
-      // 常に一番下までスクロール
       chatWindow.scrollTop = chatWindow.scrollHeight;
     }
 
-    // 相手のメッセージ（左側）をタイピングアニメーション付きで追加
-    function addOtherMessageTyping(text) {
+    // --- ここからが「HTMLを崩さずにタイピング」のキモ ---
+
+    // あるノード（テキスト or 要素）を、対応するDOMを作りながらタイプする
+    function typeNode(srcNode, destParent) {
+      return new Promise((resolve) => {
+        // テキストノードなら1文字ずつ表示
+        if (srcNode.nodeType === Node.TEXT_NODE) {
+          const text = srcNode.textContent;
+          const textNode = document.createTextNode("");
+          destParent.appendChild(textNode);
+
+          let index = 0;
+          const timer = setInterval(() => {
+            textNode.textContent += text[index];
+            index++;
+
+            // タイピング中もスクロール追従
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            if (index >= text.length) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, TYPE_SPEED);
+        }
+        // 要素ノードならタグをそのまま複製して、その中の子ノードを順にタイプ
+        else if (srcNode.nodeType === Node.ELEMENT_NODE) {
+          const el = document.createElement(srcNode.tagName);
+
+          // 属性をコピー（class, style なども保持）
+          for (const attr of srcNode.attributes) {
+            el.setAttribute(attr.name, attr.value);
+          }
+
+          destParent.appendChild(el);
+
+          const children = Array.from(srcNode.childNodes);
+
+          (async () => {
+            for (const child of children) {
+              await typeNode(child, el);
+            }
+            resolve();
+          })();
+        } else {
+          // コメントノードなどその他は無視
+          resolve();
+        }
+      });
+    }
+
+    // HTML文字列をパースし、bubble内に「構造そのまま」でタイピング表示する
+    function typeHtmlIntoBubble(html, bubble) {
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+
+      const nodes = Array.from(temp.childNodes);
+
+      (async () => {
+        for (const node of nodes) {
+          await typeNode(node, bubble);
+        }
+      })();
+    }
+
+    // 相手のメッセージ（左側）を HTML タイピング付きで追加
+    function addOtherMessageTypingHtml(html) {
       const row = document.createElement("div");
       row.classList.add("message-row", "other");
 
       const bubble = document.createElement("div");
       bubble.classList.add("bubble");
+
       row.appendChild(bubble);
       chatWindow.appendChild(row);
 
-      let index = 0;
-      const speed = 40; // タイピング速度（ミリ秒）
-
-      const timer = setInterval(() => {
-        bubble.textContent = text.slice(0, index + 1);
-        index++;
-
-        // アニメーション中も常に下までスクロール
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-
-        if (index >= text.length) {
-          clearInterval(timer);
-        }
-      }, speed);
+      // HTMLを崩さずにタイプ
+      typeHtmlIntoBubble(html, bubble);
     }
+
+    // --- ボタンハンドラ ---
 
     function handleSendOther() {
       const text = chatInput.value.trim();
       if (!text) return;
-      addOtherMessageTyping(text);
+      addOtherMessageTypingHtml(text); // HTMLとして解釈してタイプ
       chatInput.value = "";
       chatInput.focus();
     }
@@ -205,7 +262,7 @@
     function handleSendSelf() {
       const text = chatInput.value.trim();
       if (!text) return;
-      addSelfMessage(text);
+      addSelfMessage(text); // プレーンテキスト
       chatInput.value = "";
       chatInput.focus();
     }
