@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>シンプルチャット画面</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: #f5f5f7;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      height: 100vh;
+    }
+
+    .chat-container {
+      background: #ffffff;
+      width: 100%;
+      max-width: 600px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #ddd;
+      border-right: 1px solid #ddd;
+    }
+
+    .chat-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      font-weight: bold;
+      background: #fafafa;
+    }
+
+    .chat-window {
+      flex: 1;
+      padding: 12px 12px 16px;
+      overflow-y: auto;
+      background: #f3f4f6;
+    }
+
+    .message-row {
+      display: flex;
+      margin-bottom: 8px;
+    }
+
+    .message-row.other {
+      justify-content: flex-start;
+    }
+
+    .message-row.self {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: 75%;
+      padding: 8px 12px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .message-row.other .bubble {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-row.self .bubble {
+      background: #1d4ed8;
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-input-area {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-top: 1px solid #ddd;
+      background: #fafafa;
+      gap: 8px;
+    }
+
+    .chat-input-area input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .chat-input-area input[type="text"]:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .chat-input-area button {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #sendOther {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    #sendSelf {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .chat-input-area button:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">チャット画面（サンプル）</div>
+
+    <div class="chat-window" id="chatWindow">
+      <!-- メッセージがここに追加される -->
+    </div>
+
+    <div class="chat-input-area">
+      <input
+        type="text"
+        id="chatInput"
+        placeholder="メッセージを入力..."
+      />
+      <button id="sendOther">相手送信</button>
+      <button id="sendSelf">自分送信</button>
+    </div>
+  </div>
+
+  <script>
+    const chatWindow = document.getElementById("chatWindow");
+    const chatInput = document.getElementById("chatInput");
+    const sendOtherBtn = document.getElementById("sendOther");
+    const sendSelfBtn = document.getElementById("sendSelf");
+
+    // 自分のメッセージ（右側）を追加
+    function addSelfMessage(text) {
+      const row = document.createElement("div");
+      row.classList.add("message-row", "self");
+
+      const bubble = document.createElement("div");
+      bubble.classList.add("bubble");
+      bubble.textContent = text;
+
+      row.appendChild(bubble);
+      chatWindow.appendChild(row);
+
+      // 常に一番下までスクロール
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // 相手のメッセージ（左側）をタイピングアニメーション付きで追加
+    function addOtherMessageTyping(text) {
+      const row = document.createElement("div");
+      row.classList.add("message-row", "other");
+
+      const bubble = document.createElement("div");
+      bubble.classList.add("bubble");
+      row.appendChild(bubble);
+      chatWindow.appendChild(row);
+
+      let index = 0;
+      const speed = 40; // タイピング速度（ミリ秒）
+
+      const timer = setInterval(() => {
+        bubble.textContent = text.slice(0, index + 1);
+        index++;
+
+        // アニメーション中も常に下までスクロール
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        if (index >= text.length) {
+          clearInterval(timer);
+        }
+      }, speed);
+    }
+
+    function handleSendOther() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      addOtherMessageTyping(text);
+      chatInput.value = "";
+      chatInput.focus();
+    }
+
+    function handleSendSelf() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      addSelfMessage(text);
+      chatInput.value = "";
+      chatInput.focus();
+    }
+
+    sendOtherBtn.addEventListener("click", handleSendOther);
+    sendSelfBtn.addEventListener("click", handleSendSelf);
+
+    // Enter で「自分送信」、Shift+Enter で改行（お好みで）
+    chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendSelf();
+      }
+    });
+  </script>
+</body>
+</html>
